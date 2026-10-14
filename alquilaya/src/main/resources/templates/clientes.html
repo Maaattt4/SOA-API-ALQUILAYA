@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlquilaYA - Gestión de Clientes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 para alertas profesionales -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .navbar-brand { font-weight: bold; letter-spacing: 1px; }
+        .text-orange { color: #ff6b00; }
+        .table-custom th { background-color: #003366; color: white; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <!-- Navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="/"><span class="text-orange">Alquila</span>YA <i class="fa-solid fa-car-side"></i></a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left"></i> Volver al Panel</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-dark"><i class="fa-solid fa-users text-primary"></i> Directorio de Clientes</h2>
+            <!-- Botón que abre el Modal -->
+            <button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCliente">
+                <i class="fa-solid fa-plus"></i> Registrar Nuevo Cliente
+            </button>
+        </div>
+        
+    <!-- Barra de búsqueda -->
+        <div class="row mb-3">
+            <div class="col-md-4 ms-auto">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="inputBusqueda" class="form-control border-start-0" placeholder="Buscar registro..." onkeyup="filtrarTabla()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta de la Tabla -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="py-3 px-4">ID</th>
+                                <th class="py-3">Cliente</th>
+                                <th class="py-3">Contacto</th>
+                                <th class="py-3">Licencia</th>
+                                <th class="py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaClientes">
+                            <!-- Datos inyectados por JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Profesional para Registrar Cliente -->
+    <div class="modal fade" id="modalCliente" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus text-orange"></i> Formulario de Registro</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formCliente">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Nombre</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-user"></i></span>
+                                    <input type="text" id="nombre" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Apellido</label>
+                                <input type="text" id="apellido" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Correo Electrónico</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-envelope"></i></span>
+                                    <input type="email" id="email" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Teléfono</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-phone"></i></span>
+                                    <input type="text" id="telefono" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">N° Licencia de Conducir</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-id-card"></i></span>
+                                    <input type="text" id="licencia" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formCliente" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar Cliente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_URL = '/api/clientes';
+        const modalCliente = new bootstrap.Modal(document.getElementById('modalCliente'));
+
+        document.addEventListener('DOMContentLoaded', cargarClientes);
+
+        async function cargarClientes() {
+            try {
+                const response = await fetch(API_URL);
+                const clientes = await response.json();
+                const tbody = document.getElementById('tablaClientes');
+                tbody.innerHTML = '';
+
+                if(clientes.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No hay clientes registrados en la base de datos.</td></tr>`;
+                    return;
+                }
+
+                clientes.forEach(cliente => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-4 fw-bold text-secondary">#${cliente.idCliente}</td>
+                            <td>
+                                <div class="fw-bold">${cliente.nombre} ${cliente.apellido}</div>
+                            </td>
+                            <td>
+                                <div><i class="fa-solid fa-envelope text-muted me-1"></i> ${cliente.email}</div>
+                                <div><i class="fa-solid fa-phone text-muted me-1"></i> ${cliente.telefono || 'Sin registro'}</div>
+                            </td>
+                            <td><span class="badge bg-secondary"><i class="fa-solid fa-id-card"></i> ${cliente.licenciaConducir}</span></td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminarCliente(${cliente.idCliente})" title="Eliminar">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error', 'No se pudieron cargar los clientes', 'error');
+            }
+        }
+
+        document.getElementById('formCliente').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const nuevoCliente = {
+                nombre: document.getElementById('nombre').value,
+                apellido: document.getElementById('apellido').value,
+                email: document.getElementById('email').value,
+                licenciaConducir: document.getElementById('licencia').value,
+                telefono: document.getElementById('telefono').value
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(nuevoCliente)
+                });
+
+                if (response.ok) {
+                    modalCliente.hide(); // Cierra el modal automáticamente
+                    document.getElementById('formCliente').reset();
+                    cargarClientes();
+                    
+                    // Alerta de éxito profesional
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Registrado!',
+                        text: 'El cliente ha sido guardado exitosamente.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    const errores = await response.json();
+                    Swal.fire('Atención', 'Verifica los datos. El correo o licencia ya podrían estar registrados.', 'warning');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Problema de conexión con el servidor', 'error');
+            }
+        });
+
+        async function eliminarCliente(id) {
+            // Confirmación estilizada
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "Esta acción no se puede deshacer.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            cargarClientes();
+                            Swal.fire('¡Eliminado!', 'El registro ha sido borrado.', 'success');
+                        } else {
+                            Swal.fire('Error', 'No se pudo eliminar el cliente', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                }
+            });
+        }
+
+        // Función para filtrar cualquier tabla de la página
+        function filtrarTabla() {
+            let input = document.getElementById("inputBusqueda");
+            let filter = input.value.toLowerCase();
+            // Selecciona el cuerpo de la tabla (asegúrate de que sea el único tbody o cámbialo por el ID específico)
+            let tbody = document.querySelector("table tbody"); 
+            let tr = tbody.getElementsByTagName("tr");
+
+            for (let i = 0; i < tr.length; i++) {
+                // Evitamos filtrar la fila de "No hay datos registrados"
+                if (tr[i].getElementsByTagName("td").length > 1) {
+                    let textValue = tr[i].textContent || tr[i].innerText;
+                    if (textValue.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+        
+    </script>
+</body>
+</html>

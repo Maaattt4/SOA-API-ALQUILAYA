@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlquilaYA - Flota de Vehículos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .navbar-brand { font-weight: bold; letter-spacing: 1px; }
+        .text-orange { color: #ff6b00; }
+        .table-custom th { background-color: #004d40; color: white; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <!-- Navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="/"><span class="text-orange">Alquila</span>YA <i class="fa-solid fa-car-side"></i></a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left"></i> Volver al Panel</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-dark"><i class="fa-solid fa-car text-success"></i> Flota de Vehículos</h2>
+            <button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#modalVehiculo">
+                <i class="fa-solid fa-plus"></i> Registrar Vehículo
+            </button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="row mb-3">
+            <div class="col-md-4 ms-auto">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="inputBusqueda" class="form-control border-start-0" placeholder="Buscar registro..." onkeyup="filtrarTabla()">
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="py-3 px-4">ID / Matrícula</th>
+                                <th class="py-3">Vehículo (Marca/Modelo/Año)</th>
+                                <th class="py-3 text-center">Tarifa Diaria</th>
+                                <th class="py-3 text-center">Estado</th>
+                                <th class="py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVehiculos">
+                            <!-- Datos inyectados por JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Registrar Vehículo -->
+    <div class="modal fade" id="modalVehiculo" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-car-side text-success"></i> Nuevo Vehículo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formVehiculo">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Marca</label>
+                                <input type="text" id="marca" class="form-control" placeholder="Ej. Toyota" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Modelo</label>
+                                <input type="text" id="modelo" class="form-control" placeholder="Ej. Corolla" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Año</label>
+                                <input type="number" id="anio" class="form-control" min="1900" max="2027" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Matrícula</label>
+                                <input type="text" id="matricula" class="form-control" style="text-transform: uppercase;" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Tarifa Diaria ($)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">$</span>
+                                    <input type="number" step="0.01" id="tarifa" class="form-control" required>
+                                </div>
+                            </div>
+                            <!-- NUEVO CAMPO: ELEGIR SUCURSAL -->
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Elegir Sucursal Asignada</label>
+                                <select id="oficinaSelect" class="form-select" required>
+                                    <option value="">Cargando sucursales...</option>
+                                
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formVehiculo" class="btn btn-success"><i class="fa-solid fa-save"></i> Guardar Vehículo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_URL = '/api/vehiculos';
+        const modalVehiculo = new bootstrap.Modal(document.getElementById('modalVehiculo'));
+
+        // Llama a esta función cuando cargue la página
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarVehiculos();
+            cargarOficinasSelect(); // Nueva llamada
+        });
+
+        // Nueva función para cargar el select
+        async function cargarOficinasSelect() {
+            try {
+                const res = await fetch('/api/oficinas');
+                const oficinas = await res.json();
+                const select = document.getElementById('oficinaSelect');
+                select.innerHTML = '<option value="">Seleccione una sucursal...</option>';
+                oficinas.forEach(ofi => {
+                    select.innerHTML += `<option value="${ofi.idOficina}">${ofi.nombreOficina} - ${ofi.ciudad}</option>`;
+                });
+            } catch (error) {
+                console.error("Error al cargar oficinas", error);
+            }
+        }
+
+
+
+        document.addEventListener('DOMContentLoaded', cargarVehiculos);
+
+ async function cargarVehiculos() {
+            try {
+                const response = await fetch(API_URL);
+                const vehiculos = await response.json();
+                const tbody = document.getElementById('tablaVehiculos');
+                tbody.innerHTML = '';
+
+                if(vehiculos.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No hay vehículos registrados en la flota.</td></tr>`;
+                    return;
+                }
+
+                vehiculos.forEach(vehiculo => {
+                    // 1. Lógica para el color de la etiqueta (badge) del estado
+                    // 1. Lógica para el color de la etiqueta (badge) del estado
+                    let badgeColor = 'bg-success'; // Disponible
+                    if(vehiculo.estado === 'Alquilado') badgeColor = 'bg-warning text-dark';
+                    if(vehiculo.estado === 'Mantenimiento') badgeColor = 'bg-danger';
+
+                    // 2. Botón de eliminar normal (Borrado permanente)
+                    let btnEliminar = `<button class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminarVehiculo(${vehiculo.idVehiculo})" title="Eliminar"><i class="fa-solid fa-trash"></i></button>`;
+
+                    // 3. Inyección de la fila en la tabla
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-4">
+                                <div class="fw-bold text-secondary">#${vehiculo.idVehiculo}</div>
+                                <span class="badge bg-dark border">${vehiculo.matricula}</span>
+                            </td>
+                            <td>
+                                <div class="fw-bold fs-5">${vehiculo.marca} ${vehiculo.modelo}</div>
+                                <div class="text-muted"><i class="fa-regular fa-calendar"></i> Año: ${vehiculo.anio}</div>
+                            </td>
+                            <td class="text-center fw-bold text-success fs-5">
+                                $${vehiculo.tarifaDiaria}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge ${badgeColor} px-3 py-2">${vehiculo.estado}</span>
+                            </td>
+                            <td class="text-center">
+                                ${btnEliminar}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error', 'No se pudo cargar la flota', 'error');
+            }
+        }
+
+   document.getElementById('formVehiculo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            let idOficinaSeleccionada = document.getElementById('oficinaSelect').value;
+            
+            const datosVehiculo = {
+                marca: document.getElementById('marca').value,
+                modelo: document.getElementById('modelo').value,
+                anio: parseInt(document.getElementById('anio').value),
+                matricula: document.getElementById('matricula').value.toUpperCase(),
+                tarifaDiaria: parseFloat(document.getElementById('tarifa').value),
+                oficina: idOficinaSeleccionada ? { idOficina: parseInt(idOficinaSeleccionada) } : null
+            };
+
+            try {
+                // Fíjate que aquí usamos directamente API_URL y 'POST'
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datosVehiculo)
+                });
+
+                if (response.ok) {
+                    // Cerrar el modal de forma segura
+                    const modalEl = document.getElementById('modalVehiculo');
+                    const modalInst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modalInst.hide();
+                    
+                    document.getElementById('formVehiculo').reset();
+                    cargarVehiculos();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Añadido a la flota!',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    const errorData = await response.json();
+                    console.error("Detalle del error del backend:", errorData);
+                    
+                    let mensajeError = "Revisa los campos.";
+                    if (errorData) {
+                        mensajeError = Object.values(errorData).join("\n"); 
+                    }
+                    
+                    Swal.fire('No se pudo guardar', mensajeError, 'warning');
+                }
+            } catch (error) {
+                console.error("Error de red/código:", error);
+                Swal.fire('Error', 'Problema de conexión. Revisa la consola (F12).', 'error');
+            }
+        });
+
+       async function eliminarVehiculo(id) {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "Esta acción eliminará el vehículo de la base de datos permanentemente.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            cargarVehiculos();
+                            Swal.fire('¡Eliminado!', 'El vehículo ha sido borrado de la base de datos.', 'success');
+                        } else {
+                            Swal.fire('Error', 'No se pudo eliminar el vehículo. Verifica que no tenga historial de alquileres o mantenimientos asociados.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                }
+            });
+        }
+
+    // Función para filtrar cualquier tabla de la página
+        function filtrarTabla() {
+            let input = document.getElementById("inputBusqueda");
+            let filter = input.value.toLowerCase();
+            // Selecciona el cuerpo de la tabla (asegúrate de que sea el único tbody o cámbialo por el ID específico)
+            let tbody = document.querySelector("table tbody"); 
+            let tr = tbody.getElementsByTagName("tr");
+
+
+            for (let i = 0; i < tr.length; i++) {
+                // Evitamos filtrar la fila de "No hay datos registrados"
+                if (tr[i].getElementsByTagName("td").length > 1) {
+                    let textValue = tr[i].textContent || tr[i].innerText;
+                    if (textValue.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        
+
+    </script>
+</body>
+</html>

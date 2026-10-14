@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlquilaYA - Gestión de Alquileres</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .navbar-brand { font-weight: bold; letter-spacing: 1px; }
+        .text-orange { color: #ff6b00; }
+        .table-custom th { background-color: #ff8f00; color: white; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <!-- Navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="/"><span class="text-orange">Alquila</span>YA <i class="fa-solid fa-car-side"></i></a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left"></i> Volver al Panel</a>
+            </div>
+        </div>
+    </nav>
+
+
+    <div class="container mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-dark"><i class="fa-solid fa-file-contract text-warning"></i> Contratos de Alquiler</h2>
+            <button class="btn btn-warning shadow-sm fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#modalAlquiler" onclick="cargarSelects()">
+                <i class="fa-solid fa-plus"></i> Nuevo Contrato
+            </button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="row mb-3">
+            <div class="col-md-4 ms-auto">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="inputBusqueda" class="form-control border-start-0" placeholder="Buscar registro..." onkeyup="filtrarTabla()">
+                </div>
+            </div>
+        </div>        
+
+        
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="py-3 px-4">Folio</th>
+                                <th class="py-3">Cliente</th>
+                                <th class="py-3">Vehículo</th>
+                                <th class="py-3">Periodo</th>
+                                <th class="py-3 text-center">Total</th>
+                                <th class="py-3 text-center">Estado</th>
+                                <th class="py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaAlquileres">
+                            <!-- Datos inyectados por JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Registrar Alquiler -->
+    <div class="modal fade" id="modalAlquiler" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-signature text-warning"></i> Generar Contrato</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formAlquiler">
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Seleccionar Cliente</label>
+                                <select id="clienteSelect" class="form-select" required>
+                                    <option value="">Cargando clientes...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Seleccionar Vehículo (Solo Disponibles)</label>
+                                <select id="vehiculoSelect" class="form-select" required>
+                                    <option value="">Cargando vehículos...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Fecha de Inicio</label>
+                                <input type="date" id="fechaInicio" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Fecha de Devolución</label>
+                                <input type="date" id="fechaFin" class="form-control" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formAlquiler" class="btn btn-warning fw-bold"><i class="fa-solid fa-check"></i> Confirmar Alquiler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_ALQUILERES = '/api/alquileres';
+        const API_CLIENTES = '/api/clientes';
+        const API_VEHICULOS = '/api/vehiculos';
+        const modalAlquiler = new bootstrap.Modal(document.getElementById('modalAlquiler'));
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarAlquileres();
+            // Configurar fecha mínima de hoy para los inputs
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('fechaInicio').min = hoy;
+            document.getElementById('fechaFin').min = hoy;
+        });
+
+        async function cargarAlquileres() {
+            try {
+                const response = await fetch(API_ALQUILERES);
+                const alquileres = await response.json();
+                const tbody = document.getElementById('tablaAlquileres');
+                tbody.innerHTML = '';
+
+                if(alquileres.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No hay contratos de alquiler vigentes o pasados.</td></tr>`;
+                    return;
+                }
+
+                // ¡AQUÍ INICIA EL BUCLE QUE TE FALTABA!
+                alquileres.forEach(alquiler => {
+                    
+                    // Si el estado es "Completado", creamos el botón rojo. Si no, lo dejamos vacío ('').
+                    let btnEliminar = alquiler.estado === 'Completado' 
+                        ? `<button class="btn btn-outline-danger btn-sm rounded-circle shadow-sm ms-1" onclick="eliminarAlquiler(${alquiler.idAlquiler})" title="Eliminar Contrato"><i class="fa-solid fa-trash"></i></button>`
+                        : '';
+
+                    // Inyección de la fila
+                    // Inyección de la fila
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="fw-bold text-secondary">#${alquiler.idAlquiler}</td>
+                            <td>${alquiler.cliente.nombre} ${alquiler.cliente.apellido}</td>
+                            <td>${alquiler.vehiculo.marca} ${alquiler.vehiculo.modelo}</td>
+                            <td class="text-center">${alquiler.fechaAlquiler} / ${alquiler.fechaDevolucion}</td>
+                            <td class="text-center fw-bold text-success">$${alquiler.precioTotal}</td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">${alquiler.estado}</span>
+                            </td>
+                            <td class="text-center">
+                                <!-- Botón de Devolver (solo si está Activo) -->
+                                ${alquiler.estado === 'Activo' ? `<button class="btn btn-success btn-sm" onclick="devolverVehiculo(${alquiler.idAlquiler})"><i class="fa-solid fa-rotate-left"></i> Devolver</button>` : ''}
+                                
+                                <!-- Botón condicional de eliminar (solo si está Completado) -->
+                                ${btnEliminar}
+                            </td>
+                        </tr>
+                    `;
+                }); // CIERRE DEL BUCLE FOR-EACH
+
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error', 'No se pudieron cargar los alquileres', 'error');
+            }
+        }
+
+        // Cargar selects al abrir el modal
+        async function cargarSelects() {
+            try {
+                // Cargar Clientes
+                const resCli = await fetch(API_CLIENTES);
+                const clientes = await resCli.json();
+                const selCli = document.getElementById('clienteSelect');
+                selCli.innerHTML = '<option value="">Seleccione un cliente...</option>';
+                clientes.forEach(c => selCli.innerHTML += `<option value="${c.idCliente}">${c.nombre} ${c.apellido} (Lic: ${c.licenciaConducir})</option>`);
+
+                // Cargar Vehículos (Solo Disponibles)
+                const resVeh = await fetch(API_VEHICULOS);
+                const vehiculos = await resVeh.json();
+                const selVeh = document.getElementById('vehiculoSelect');
+                selVeh.innerHTML = '<option value="">Seleccione un vehículo...</option>';
+                vehiculos.filter(v => v.estado === 'Disponible').forEach(v => {
+                    selVeh.innerHTML += `<option value="${v.idVehiculo}">${v.marca} ${v.modelo} - $${v.tarifaDiaria}/día (Matrícula: ${v.matricula})</option>`;
+                });
+            } catch (error) {
+                console.error("Error cargando selects", error);
+            }
+        }
+
+            document.getElementById('formAlquiler').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 1. Obtener valores del formulario
+            const idClienteSel = document.getElementById('clienteSelect').value;
+            const idVehiculoSel = document.getElementById('vehiculoSelect').value;
+            const fInicio = document.getElementById('fechaInicio').value;
+            const fFin = document.getElementById('fechaFin').value;
+
+            // 2. Validar que no haya campos vacíos
+            if (!idClienteSel || !idVehiculoSel || !fInicio || !fFin) {
+                Swal.fire('Atención', 'Todos los campos son obligatorios.', 'warning');
+                return;
+            }
+
+            if (new Date(fFin) <= new Date(fInicio)) {
+                Swal.fire('Atención', 'La fecha de devolución debe ser posterior a la de inicio.', 'warning');
+                return;
+            }
+
+            // 3. Estructurar el JSON exactamente como lo pide Spring Boot
+            const nuevoAlquiler = {
+                cliente: { idCliente: parseInt(idClienteSel) },
+                vehiculo: { idVehiculo: parseInt(idVehiculoSel) },
+                fechaAlquiler: fInicio,
+                fechaDevolucion: fFin
+            };
+
+            try {
+                const response = await fetch(API_ALQUILERES, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(nuevoAlquiler)
+                });
+
+                if (response.ok) {
+                    const modalEl = document.getElementById('modalAlquiler');
+                    const modalInst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modalInst.hide();
+                    
+                    document.getElementById('formAlquiler').reset();
+                    cargarAlquileres();
+                    
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: '¡Contrato Generado!', 
+                        timer: 2000, 
+                        showConfirmButton: false 
+                    });
+                } else {
+                    const errorData = await response.json();
+                    let mensajeError = errorData.error || "Revisa los datos del formulario.";
+                    Swal.fire('Error', mensajeError, 'error');
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                Swal.fire('Error', 'Problema de conexión con el servidor.', 'error');
+            }
+        });
+
+        async function devolverVehiculo(id) {
+            Swal.fire({
+                title: '¿Confirmar devolución?',
+                text: "El vehículo volverá a estar Disponible en la flota.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, recibir vehículo'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`${API_ALQUILERES}/${id}/devolver`, { method: 'POST' });
+                        if (response.ok) {
+                            cargarAlquileres();
+                            Swal.fire('¡Devuelto!', 'El contrato ha finalizado exitosamente.', 'success');
+                        }
+                    } catch (error) {
+                        Swal.fire('Error', 'No se pudo procesar la devolución.', 'error');
+                    }
+                }
+            });
+        }
+
+        // Función para filtrar cualquier tabla de la página
+        function filtrarTabla() {
+            let input = document.getElementById("inputBusqueda");
+            let filter = input.value.toLowerCase();
+            // Selecciona el cuerpo de la tabla (asegúrate de que sea el único tbody o cámbialo por el ID específico)
+            let tbody = document.querySelector("table tbody"); 
+            let tr = tbody.getElementsByTagName("tr");
+
+            for (let i = 0; i < tr.length; i++) {
+                // Evitamos filtrar la fila de "No hay datos registrados"
+                if (tr[i].getElementsByTagName("td").length > 1) {
+                    let textValue = tr[i].textContent || tr[i].innerText;
+                    if (textValue.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        async function eliminarAlquiler(id) {
+            Swal.fire({
+                title: '¿Eliminar contrato?',
+                text: "Esta acción borrará el historial de este alquiler permanentemente.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`${API_ALQUILERES}/${id}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            cargarAlquileres();
+                            Swal.fire('¡Eliminado!', 'El contrato ha sido borrado.', 'success');
+                        } else {
+                            const errorData = await response.json();
+                            Swal.fire('No permitido', errorData.error || 'No se pudo eliminar el contrato.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html> 
